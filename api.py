@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware  # <-- Ajout de l'import pour le CORS
 import shutil
 import os
 from extractor import extraire_texte
@@ -8,6 +9,19 @@ from rapport import generer_rapport, sauvegarder_rapport
 from database import get_session, Document, Texte, Analyse, initialiser_base
 
 app = FastAPI(title="Qualiopilot API")
+
+# --- CONFIGURATION DU CORS ---
+# Permet au Front-End React de communiquer avec cette API FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Autorise toutes les méthodes (POST, GET, etc.)
+    allow_headers=["*"],  # Autorise tous les en-têtes
+)
 
 # Dossier temporaire pour stocker les fichiers uploadés
 UPLOAD_DIR = "uploads"
