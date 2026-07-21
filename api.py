@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
 from extractor import extraire_texte
@@ -8,6 +9,14 @@ from rapport import generer_rapport, sauvegarder_rapport
 from database import get_session, Document, Texte, Analyse, initialiser_base
 
 app = FastAPI(title="Qualiopilot API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dossier temporaire pour stocker les fichiers uploadés
 UPLOAD_DIR = "uploads"
@@ -23,23 +32,17 @@ def accueil():
 
 @app.post("/upload")
 async def upload_document(fichier: UploadFile = File(...)):
-    # Sauvegarder le fichier uploadé
     chemin_fichier = os.path.join(UPLOAD_DIR, fichier.filename)
     with open(chemin_fichier, "wb") as f:
         shutil.copyfileobj(fichier.file, f)
 
-    # Étape 1 : Extraire le texte
     texte = extraire_texte(chemin_fichier)
     if not texte or texte.strip() == "":
         return JSONResponse(status_code=400, content={"erreur": "Impossible d'extraire le texte."})
 
-    # Étape 2 : Analyser avec l'IA
     resultat_analyse = analyser_texte(texte)
-
-    # Étape 3 : Générer le rapport
     rapport = generer_rapport(fichier.filename, resultat_analyse)
 
-    # Étape 4 : Sauvegarder dans la base de données
     session = get_session()
     document = Document(
         nom_fichier=fichier.filename,
