@@ -2,58 +2,49 @@ import os
 import anthropic
 import json
 
-# Clé API Anthropic (à remplir plus tard)
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
 def analyser_texte(texte):
-    # Vérifier que le texte n'est pas vide
     if not texte or texte.strip() == "":
         return {"erreur": "Texte vide, impossible d'analyser."}
 
-    # Créer le client Anthropic
-    client = anthropic.Anthropic(api_key=API_KEY)
-
-    # Prompt envoyé à Claude
     prompt = f"""
 Tu es un expert en certification Qualiopi pour les organismes de formation.
+Analyse le texte suivant et fais une synthèse COURTE et CLAIRE, facile à lire rapidement.
 
-Analyse le texte suivant et identifie :
-1. Les preuves de conformité Qualiopi présentes
-2. Les éléments manquants
-3. Un score de conformité estimé sur 100
+Consignes strictes :
+- Maximum 3 preuves de conformité (les plus importantes seulement)
+- Maximum 3 éléments manquants (les plus importants seulement)
+- Un commentaire de 2 phrases maximum, simple et direct
+- Pas de jargon technique inutile, du langage clair
 
-Réponds UNIQUEMENT en JSON avec ce format :
+Réponds UNIQUEMENT en JSON avec ce format, rien d'autre :
 {{
-    "preuves_trouvees": ["preuve1", "preuve2"],
-    "elements_manquants": ["element1", "element2"],
+    "preuves_trouvees": ["preuve1", "preuve2", "preuve3"],
+    "elements_manquants": ["element1", "element2", "element3"],
     "score_conformite": 75,
-    "commentaire": "explication courte"
+    "commentaire": "phrase courte et claire"
 }}
 
 Texte à analyser :
 {texte[:3000]}
 """
 
-    # Appel à l'API Claude
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1000,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    # Extraire la réponse JSON
     try:
-        resultat = json.loads(message.content[0].text)
+        texte_brut = message.content[0].text.strip()
+        if texte_brut.startswith("```"):
+            texte_brut = texte_brut.split("```")[1]
+            if texte_brut.startswith("json"):
+                texte_brut = texte_brut[4:]
+            texte_brut = texte_brut.strip()
+        resultat = json.loads(texte_brut)
     except Exception:
         resultat = {"reponse_brute": message.content[0].text}
 
     return resultat
-
-
-# Test
-if __name__ == "__main__":
-    texte_test = input("Entre un texte à analyser : ")
-    resultat = analyser_texte(texte_test)
-    print("\n--- RÉSULTAT ANALYSE ---")
-    print(json.dumps(resultat, indent=2, ensure_ascii=False))
